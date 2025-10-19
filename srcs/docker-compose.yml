@@ -1,0 +1,146 @@
+services:
+
+  nginx:
+    restart: always
+    build: requirements/nginx
+    image: nginx:aisdaoun
+    container_name: nginx
+    ports:
+      - "443:443"
+    volumes:
+      - wordpress_data:/var/www/html
+    depends_on:
+      - wordpress
+    networks:
+      - my_network
+
+  wordpress:
+    restart: always
+    build: requirements/wordpress
+    image: wordpress:aisdaoun
+    container_name: wordpress
+    volumes:
+      - wordpress_data:/var/www/html
+    depends_on:
+      - mariadb
+    networks:
+      - my_network
+    env_file: .env
+    secrets:
+      - wp_root_pass
+      - wp_user_pass
+      - db_user_pass
+
+  mariadb:
+    restart: always
+    build: requirements/mariadb
+    image: mariadb:aisdaoun
+    container_name: mariadb
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - my_network
+    env_file: .env
+    secrets:
+      - db_user_pass
+      - db_root_pass
+
+  ftp:
+    restart: always
+    build: requirements/bonus/ftp
+    image: ftp:aisdaoun
+    container_name: ftp
+    ports:
+      - "21:21"
+    volumes:
+      - wordpress_data:/var/www/html
+    networks:
+      - my_network
+    depends_on:
+      - wordpress
+    env_file: .env
+    secrets:
+      - ftp_user_pass
+
+  adminer:
+    restart: always
+    build: requirements/bonus/adminer
+    image: adminer:aisdaoun
+    container_name: adminer
+    ports:
+      - "8080:8080"
+    networks:
+      - my_network
+    depends_on:
+      - mariadb
+
+  portainer:
+    restart: always
+    build: requirements/bonus/portainer
+    image: portainer:aisdaoun
+    container_name: portainer
+    ports:
+      - "9000:9000"
+    networks:
+      - my_network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer:/data
+
+  redis:
+    restart: always
+    build: requirements/bonus/redis
+    image: redis:aisdaoun
+    container_name: redis
+    networks:
+      - my_network
+
+  static_website:
+    restart: always
+    build: requirements/bonus/static_website
+    image: static_website:aisdaoun
+    container_name: static_website
+    ports:
+      - "1234:1234"
+    networks:
+      - my_network
+
+networks:
+  my_network:
+    name: my_network
+    driver: bridge
+
+volumes:
+  wordpress_data:
+    name: wordpress
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${HOME}/data/wordpress
+  mariadb_data:
+    name: mariadb
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${HOME}/data/mariadb
+  portainer:
+    name: portainer
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ${HOME}/data/portainer
+
+secrets:
+  db_user_pass:
+    file: ../secrets/db_user_pass.txt
+  db_root_pass:
+    file: ../secrets/db_root_pass.txt
+  ftp_user_pass:
+    file: ../secrets/ftp_user_pass.txt
+  wp_root_pass:
+    file: ../secrets/wp_root_pass.txt
+  wp_user_pass:
+    file: ../secrets/wp_user_pass.txt
